@@ -3,7 +3,7 @@ tmp_dir = "tmp"
 
 [build]
 
-cmd = "go build -o tmp/app cmd/main/app.go"
+cmd = "go build -o tmp/api cmd/main/api.go"
 
-bin = "tmp/app"
-full_bin = "tmp/app --logging-config example_config.yaml"
+bin = "tmp/api"
+full_bin = "tmp/api --listen-addr 0.0.0.0:8000"

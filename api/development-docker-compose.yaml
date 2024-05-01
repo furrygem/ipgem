@@ -2,9 +2,10 @@ version: '3.3'
 
 services:
   gemip-api-air:
-    image: cosmtrek/air:v1.41.0
-    working_dir: /dia
+    build: 
+      context: .
+      dockerfile: ./dev.dockerfile
     volumes:
-      - ./:/gemip-api
+      - ./:/ipgem-api
     ports:
       - 8000:8000
