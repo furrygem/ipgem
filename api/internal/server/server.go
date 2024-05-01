@@ -13,7 +13,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) Start() error {
 	s.registerRoutes()
-	return http.ListenAndServe(s.listenAddress, s)
+	middleware := Middleware{}
+	return http.ListenAndServe(s.listenAddress, middleware.Logging(s))
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
