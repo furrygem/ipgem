@@ -6,12 +6,26 @@ import (
 	"github.com/furrygem/ipgem/api/internal/logger"
 )
 
-type Middleware struct{}
+type LoggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
 
-func (m *Middleware) Logging(next http.Handler) http.Handler {
+func (lrw *LoggingResponseWriter) WriteHeader(statusCode int) {
+	lrw.statusCode = statusCode
+	lrw.ResponseWriter.WriteHeader(statusCode)
+}
+
+type LoggingMiddleware struct{}
+
+func (lm *LoggingMiddleware) Next(next http.Handler) http.Handler {
 	l := logger.GetLogger()
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		l.Infof("%s %s", r.Method, r.URL)
-		next.ServeHTTP(rw, r)
+		lrw := LoggingResponseWriter{
+			ResponseWriter: rw,
+			statusCode:     200,
+		}
+		next.ServeHTTP(&lrw, r)
+		l.Infof("%s %s %d", r.Method, r.URL, lrw.statusCode)
 	})
 }
