@@ -1,11 +1,21 @@
 package service
 
-type DNSCrud struct{}
+import "github.com/furrygem/ipgem/api/internal/repository"
 
-func (dnscrud *DNSCrud) listRecords() {}
+type DNSCrud struct {
+	repository repository.Repository
+}
 
-func (dnscrud *DNSCrud) addRecord() {}
+func NewService(repo repository.Repository) *DNSCrud {
+	return &DNSCrud{
+		repository: repo,
+	}
+}
 
-func (dnscrud *DNSCrud) update_record() {}
+func (dnscrud *DNSCrud) ListRecords() {}
 
-func (dnscrud *DNSCrud) delete_record() {}
+func (dnscrud *DNSCrud) AddRecord() {}
+
+func (dnscrud *DNSCrud) UpdateRecord() {}
+
+func (dnscrud *DNSCrud) DeleteRecord() {}
