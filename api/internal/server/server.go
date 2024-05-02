@@ -1,10 +1,15 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/furrygem/ipgem/api/internal/middleware"
+)
 
 type Server struct {
-	listenAddress string
-	router        *http.ServeMux
+	listenAddress  string
+	router         *http.ServeMux
+	middlewareList []middleware.Middleware
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -13,8 +18,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) Start() error {
 	s.registerRoutes()
-	middleware := Middleware{}
-	return http.ListenAndServe(s.listenAddress, middleware.Logging(s))
+	serv := s.addMiddleware([]middleware.Middleware{&LoggingMiddleware{}})
+	return http.ListenAndServe(s.listenAddress, serv)
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +28,15 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) registerRoutes() {
 	s.router.HandleFunc("/hello", helloHandler)
+}
+
+func (s *Server) addMiddleware(middlewareList []middleware.Middleware) http.Handler {
+	var serv http.Handler
+	serv = s
+	for _, m := range middlewareList {
+		serv = m.Next(serv)
+	}
+	return serv
 }
 
 func NewServer(addr string) *Server {
