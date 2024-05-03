@@ -1,14 +1,16 @@
 package repository
 
-type Filter interface{}
-type Identifier interface{}
-type Record interface{}
+import "github.com/furrygem/ipgem/api/internal/models"
+
+// type Filter interface{}
+// type Identifier interface{}
+// type Record interface{}
 
 type Repository interface {
 	Open() error
 	Close() error
-	List(Filter) (error, interface{})
-	Update(Identifier, Record) (error, interface{})
-	Retrieve(Identifier) (error, interface{})
-	Delete(Identifier) error
+	List() (error, *models.RecordList)
+	Update() error
+	Retrieve() error
+	Delete() error
 }
