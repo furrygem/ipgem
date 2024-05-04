@@ -4,6 +4,7 @@ import (
 	"github.com/furrygem/ipgem/api/internal/logger"
 	"github.com/furrygem/ipgem/api/internal/models"
 	"github.com/furrygem/ipgem/api/internal/repository"
+	"github.com/google/uuid"
 )
 
 type DNSCrud struct {
@@ -41,7 +42,14 @@ func (dnscrud *DNSCrud) RetrieveRecord(id string) (models.Record, error) {
 	return record, nil
 }
 
-func (dnscrud *DNSCrud) AddRecord() {}
+func (dnscrud *DNSCrud) AddRecord(record *models.Record) (models.Record, error) {
+	record.RecordID = uuid.New()
+	err, newRecord := dnscrud.Repository.Insert(record)
+	if err != nil {
+		return newRecord, err
+	}
+	return newRecord, nil
+}
 
 func (dnscrud *DNSCrud) UpdateRecord(id string, new *models.Record) (models.Record, error) {
 	err, record := dnscrud.Repository.Update(id, new)

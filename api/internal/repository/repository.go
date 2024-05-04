@@ -12,5 +12,6 @@ type Repository interface {
 	List() (error, *models.RecordList)
 	Update(string, *models.Record) (error, models.Record)
 	Retrieve(string) (error, models.Record)
+	Insert(*models.Record) (error, models.Record)
 	Delete() error
 }

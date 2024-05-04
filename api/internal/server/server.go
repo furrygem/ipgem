@@ -130,8 +130,36 @@ func (h *Handler) updateHandler(rw http.ResponseWriter, r *http.Request) {
 	rw.Write(jsoned)
 }
 
+func (h *Handler) createHandler(rw http.ResponseWriter, r *http.Request) {
+	l := logger.GetLogger()
+	newRecord := &models.Record{}
+	err := json.NewDecoder(r.Body).Decode(newRecord)
+	if err != nil {
+		l.Warn(err)
+		rw.WriteHeader(400)
+		rw.Write([]byte("Bad request"))
+		return
+	}
+	inserted, err := h.service.AddRecord(newRecord)
+	if err != nil {
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	jsoned, err := json.Marshal(inserted)
+	if err != nil {
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	rw.Write(jsoned)
+}
+
 func (s *Server) registerRoutes(h *Handler) {
 	s.router.HandleFunc("GET /records", h.listHandler)
+	s.router.HandleFunc("POST /records", h.createHandler)
 	s.router.HandleFunc("GET /records/{id}", h.retrieveHandler)
 	s.router.HandleFunc("PUT /records/{id}", h.updateHandler)
 }

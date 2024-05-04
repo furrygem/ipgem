@@ -19,6 +19,7 @@ type SQLiteRepository struct {
 	listRecordsStatement    *sql.Stmt
 	retrieveRecordStatement *sql.Stmt
 	updateRecordStatement   *sql.Stmt
+	insertRecordStatement   *sql.Stmt
 }
 
 const listRecordsQuery = `SELECT
@@ -59,6 +60,24 @@ RETURNING
 	CAST(created_at AS INTEGER),
 	CAST(updated_at AS INTEGER)`
 
+const insertRecordQuery = `INSERT INTO records (
+	record_id,
+	domain_name,
+	record_type,
+	value,
+	ttl,
+	created_at,
+	updated_at
+) VALUES ($1, $2, $3, $4, $5, unixepoch('now'), unixepoch('now'))
+RETURNING
+	record_id,
+	domain_name,
+	record_type,
+	value,
+	ttl,
+	CAST(created_at AS INTEGER),
+	CAST(updated_at AS INTEGER)`
+
 func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 	return &SQLiteRepository{
 		dbPath: dbPath,
@@ -80,6 +99,10 @@ func (sqliterepo *SQLiteRepository) Open() error {
 		return err
 	}
 	sqliterepo.updateRecordStatement, err = conn.Prepare(updateRecordQuery)
+	if err != nil {
+		return err
+	}
+	sqliterepo.insertRecordStatement, err = conn.Prepare(insertRecordQuery)
 	if err != nil {
 		return err
 	}
@@ -160,6 +183,26 @@ func (sqliterepo *SQLiteRepository) Retrieve(id string) (error, models.Record) {
 	record.CreatedAt = time.Unix(createdAtTs, 0)
 	record.UpdatedAt = time.Unix(updatedAtTs, 0)
 	return nil, record
+}
+
+func (sqliterepo *SQLiteRepository) Insert(record *models.Record) (error, models.Record) {
+	row := sqliterepo.insertRecordStatement.QueryRow(record.RecordID, record.DomainName, record.RecordType, record.Value, record.TTL)
+	newRecord := models.Record{}
+	var createdAtTs int64
+	var updatedAtTs int64
+	err := row.Scan(&newRecord.RecordID,
+		&newRecord.DomainName,
+		&newRecord.RecordType,
+		&newRecord.Value,
+		&newRecord.TTL,
+		&createdAtTs,
+		&updatedAtTs)
+	if err != nil {
+		return err, newRecord
+	}
+	newRecord.CreatedAt = time.Unix(createdAtTs, 0)
+	newRecord.UpdatedAt = time.Unix(updatedAtTs, 0)
+	return nil, newRecord
 }
 
 func (sqliterepo *SQLiteRepository) Delete() error {
