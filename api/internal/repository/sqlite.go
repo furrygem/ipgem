@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/furrygem/ipgem/api/internal/logger"
 	"github.com/furrygem/ipgem/api/internal/models"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -93,7 +92,6 @@ func (sqliterepo *SQLiteRepository) Close() error {
 
 func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 	rows, err := sqliterepo.listRecordsStatement.Query()
-	l := logger.GetLogger()
 	if err != nil {
 		return err, nil
 	}
