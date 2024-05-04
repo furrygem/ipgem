@@ -16,25 +16,41 @@ type Server struct {
 	middlewareList []middleware.Middleware
 }
 
+type Handler struct {
+	service *service.DNSCrud
+}
+
+func NewHandler(repo repository.Repository) *Handler {
+	service := service.NewService(repo)
+	return &Handler{
+		service: service,
+	}
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
 func (s *Server) Start() error {
-	s.registerRoutes()
+	l := logger.GetLogger()
+	repo, err := repository.NewSQLiteRepository("db.sqlite3")
+	if err != nil {
+		l.Fatal(err)
+	}
+	err = repo.Open()
+	if err != nil {
+		l.Fatal(err)
+	}
+	defer repo.Close()
+	handler := NewHandler(repo)
+	s.registerRoutes(handler)
 	serv := s.addMiddleware([]middleware.Middleware{&LoggingMiddleware{}})
 	return http.ListenAndServe(s.listenAddress, serv)
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	repo, err := repository.NewSQLiteRepository("db.sqlite3")
+func (h *Handler) listHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logger.GetLogger()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	s := service.NewService(repo)
-	defer s.CloseConn()
-	res, err := s.ListRecords()
+	res, err := h.service.ListRecords()
 	if err != nil {
 		logger.Error(err)
 		w.WriteHeader(500)
@@ -52,8 +68,35 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsoned)
 }
 
-func (s *Server) registerRoutes() {
-	s.router.HandleFunc("/hello", helloHandler)
+func (h *Handler) retrieveHandler(rw http.ResponseWriter, r *http.Request) {
+	l := logger.GetLogger()
+	queryID := r.PathValue("id")
+	if queryID == "" {
+		rw.WriteHeader(400)
+		rw.Write([]byte("Bad request"))
+		return
+	}
+	record, err := h.service.RetrieveRecord(queryID)
+	if err != nil {
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	jsoned, err := json.Marshal(record)
+	if err != nil {
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	rw.Write(jsoned)
+
+}
+
+func (s *Server) registerRoutes(h *Handler) {
+	s.router.HandleFunc("/records", h.listHandler)
+	s.router.HandleFunc("/records/{id}", h.retrieveHandler)
 }
 
 func (s *Server) addMiddleware(middlewareList []middleware.Middleware) http.Handler {

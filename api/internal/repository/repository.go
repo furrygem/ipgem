@@ -11,6 +11,6 @@ type Repository interface {
 	Close() error
 	List() (error, *models.RecordList)
 	Update() error
-	Retrieve() error
+	Retrieve(string) (error, models.Record)
 	Delete() error
 }

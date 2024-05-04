@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/furrygem/ipgem/api/internal/logger"
 	"github.com/furrygem/ipgem/api/internal/models"
 	"github.com/furrygem/ipgem/api/internal/repository"
 )
@@ -10,7 +11,11 @@ type DNSCrud struct {
 }
 
 func NewService(repo repository.Repository) *DNSCrud {
-	repo.Open()
+	err := repo.Open()
+	l := logger.GetLogger()
+	if err != nil {
+		l.Error(err)
+	}
 	return &DNSCrud{
 		Repository: repo,
 	}
@@ -26,6 +31,14 @@ func (dnscrud *DNSCrud) ListRecords() (*models.RecordList, error) {
 		return nil, err
 	}
 	return records, nil
+}
+
+func (dnscrud *DNSCrud) RetrieveRecord(id string) (models.Record, error) {
+	err, record := dnscrud.Repository.Retrieve(id)
+	if err != nil {
+		return record, err
+	}
+	return record, nil
 }
 
 func (dnscrud *DNSCrud) AddRecord() {}
