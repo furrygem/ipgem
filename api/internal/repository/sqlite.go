@@ -19,6 +19,7 @@ type SQLiteRepository struct {
 	dbConn                  *sql.DB
 	listRecordsStatement    *sql.Stmt
 	retrieveRecordStatement *sql.Stmt
+	updateRecordStatement   *sql.Stmt
 }
 
 const listRecordsQuery = `SELECT
@@ -42,6 +43,23 @@ const retrieveRecordQuery = `SELECT
 FROM records
 WHERE record_id=$1`
 
+const updateRecordQuery = `UPDATE records
+SET
+	domain_name = $1,
+	record_type = $2,
+	value = $3,
+	ttl = $4,
+	updated_at = unixepoch('now')
+WHERE record_id = $5
+RETURNING
+	record_id,
+	domain_name,
+	record_type,
+	value,
+	ttl,
+	CAST(created_at AS INTEGER),
+	CAST(updated_at AS INTEGER)`
+
 func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 	return &SQLiteRepository{
 		dbPath: dbPath,
@@ -55,7 +73,14 @@ func (sqliterepo *SQLiteRepository) Open() error {
 	}
 	sqliterepo.dbConn = conn
 	sqliterepo.listRecordsStatement, err = conn.Prepare(listRecordsQuery)
+	if err != nil {
+		return err
+	}
 	sqliterepo.retrieveRecordStatement, err = conn.Prepare(retrieveRecordQuery)
+	if err != nil {
+		return err
+	}
+	sqliterepo.updateRecordStatement, err = conn.Prepare(updateRecordQuery)
 	if err != nil {
 		return err
 	}
@@ -69,7 +94,6 @@ func (sqliterepo *SQLiteRepository) Close() error {
 func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 	rows, err := sqliterepo.listRecordsStatement.Query()
 	l := logger.GetLogger()
-	l.Info(rows)
 	if err != nil {
 		return err, nil
 	}
@@ -80,7 +104,6 @@ func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 		// STYLE: improve the style here, line is too long
 		var createdAtTs int64
 		var updatedAtTs int64
-		l.Info()
 		err := rows.Scan(&record.RecordID,
 			&record.DomainName,
 			&record.RecordType,
@@ -101,8 +124,24 @@ func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 	return nil, &dest
 }
 
-func (sqliterepo *SQLiteRepository) Update() error {
-	return nil
+func (sqliterepo *SQLiteRepository) Update(id string, new *models.Record) (error, models.Record) {
+	row := sqliterepo.updateRecordStatement.QueryRow(new.DomainName, new.RecordType, new.Value, new.TTL, id)
+	record := models.Record{}
+	var createdAtTs int64
+	var updatedAtTs int64
+	err := row.Scan(&record.RecordID,
+		&record.DomainName,
+		&record.RecordType,
+		&record.Value,
+		&record.TTL,
+		&createdAtTs,
+		&updatedAtTs)
+	if err != nil {
+		return err, record
+	}
+	record.CreatedAt = time.Unix(createdAtTs, 0)
+	record.UpdatedAt = time.Unix(updatedAtTs, 0)
+	return nil, record
 }
 
 func (sqliterepo *SQLiteRepository) Retrieve(id string) (error, models.Record) {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/furrygem/ipgem/api/internal/logger"
 	"github.com/furrygem/ipgem/api/internal/middleware"
+	"github.com/furrygem/ipgem/api/internal/models"
 	"github.com/furrygem/ipgem/api/internal/repository"
 	"github.com/furrygem/ipgem/api/internal/service"
 )
@@ -71,6 +72,7 @@ func (h *Handler) listHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) retrieveHandler(rw http.ResponseWriter, r *http.Request) {
 	l := logger.GetLogger()
 	queryID := r.PathValue("id")
+	// FIXME: Validate its a valid uuid
 	if queryID == "" {
 		rw.WriteHeader(400)
 		rw.Write([]byte("Bad request"))
@@ -94,9 +96,44 @@ func (h *Handler) retrieveHandler(rw http.ResponseWriter, r *http.Request) {
 
 }
 
+func (h *Handler) updateHandler(rw http.ResponseWriter, r *http.Request) {
+	l := logger.GetLogger()
+	// FIXME: Validate its a valid uuid
+	queryID := r.PathValue("id")
+	if queryID == "" {
+		rw.WriteHeader(400)
+		rw.Write([]byte("Bad request"))
+		return
+	}
+	newRecord := models.Record{}
+	err := json.NewDecoder(r.Body).Decode(&newRecord)
+	if err != nil {
+		l.Warn(err)
+		rw.WriteHeader(400)
+		rw.Write([]byte("Bad request"))
+		return
+	}
+	updatedRecord, err := h.service.UpdateRecord(queryID, &newRecord)
+	if err != nil {
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	jsoned, err := json.Marshal(updatedRecord)
+	if err != nil {
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	rw.Write(jsoned)
+}
+
 func (s *Server) registerRoutes(h *Handler) {
-	s.router.HandleFunc("/records", h.listHandler)
-	s.router.HandleFunc("/records/{id}", h.retrieveHandler)
+	s.router.HandleFunc("GET /records", h.listHandler)
+	s.router.HandleFunc("GET /records/{id}", h.retrieveHandler)
+	s.router.HandleFunc("PUT /records/{id}", h.updateHandler)
 }
 
 func (s *Server) addMiddleware(middlewareList []middleware.Middleware) http.Handler {

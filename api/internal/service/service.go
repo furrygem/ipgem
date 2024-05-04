@@ -43,6 +43,12 @@ func (dnscrud *DNSCrud) RetrieveRecord(id string) (models.Record, error) {
 
 func (dnscrud *DNSCrud) AddRecord() {}
 
-func (dnscrud *DNSCrud) UpdateRecord() {}
+func (dnscrud *DNSCrud) UpdateRecord(id string, new *models.Record) (models.Record, error) {
+	err, record := dnscrud.Repository.Update(id, new)
+	if err != nil {
+		return record, err
+	}
+	return record, nil
+}
 
 func (dnscrud *DNSCrud) DeleteRecord() {}
