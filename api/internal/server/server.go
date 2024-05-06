@@ -9,7 +9,10 @@ import (
 	"github.com/furrygem/ipgem/api/internal/models"
 	"github.com/furrygem/ipgem/api/internal/repository"
 	"github.com/furrygem/ipgem/api/internal/service"
+	"github.com/go-playground/validator/v10"
 )
+
+var validate *validator.Validate
 
 type Server struct {
 	listenAddress  string
@@ -33,6 +36,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Start() error {
+	validate = validator.New()
 	l := logger.GetLogger()
 	repo, err := repository.NewSQLiteRepository("db.sqlite3")
 	if err != nil {
@@ -80,6 +84,12 @@ func (h *Handler) retrieveHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 	record, err := h.service.RetrieveRecord(queryID)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			l.Warn(err)
+			rw.WriteHeader(404)
+			rw.Write([]byte("Not found"))
+			return
+		}
 		l.Error(err)
 		rw.WriteHeader(500)
 		rw.Write([]byte("Internal server error"))
@@ -105,16 +115,29 @@ func (h *Handler) updateHandler(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte("Bad request"))
 		return
 	}
-	newRecord := models.Record{}
-	err := json.NewDecoder(r.Body).Decode(&newRecord)
+	recordDTO := models.RecordDTO{}
+	err := json.NewDecoder(r.Body).Decode(&recordDTO)
 	if err != nil {
 		l.Warn(err)
 		rw.WriteHeader(400)
 		rw.Write([]byte("Bad request"))
 		return
 	}
-	updatedRecord, err := h.service.UpdateRecord(queryID, &newRecord)
+	err = validate.Struct(recordDTO)
 	if err != nil {
+		l.Warn(err)
+		rw.WriteHeader(400)
+		rw.Write([]byte("Bad request"))
+		return
+	}
+	updatedRecord, err := h.service.UpdateRecord(queryID, &recordDTO)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			l.Warn(err)
+			rw.WriteHeader(404)
+			rw.Write([]byte("Not found"))
+			return
+		}
 		l.Error(err)
 		rw.WriteHeader(500)
 		rw.Write([]byte("Internal server error"))
@@ -132,15 +155,16 @@ func (h *Handler) updateHandler(rw http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) createHandler(rw http.ResponseWriter, r *http.Request) {
 	l := logger.GetLogger()
-	newRecord := &models.Record{}
-	err := json.NewDecoder(r.Body).Decode(newRecord)
+	recordDTO := &models.RecordDTO{}
+	err := json.NewDecoder(r.Body).Decode(recordDTO)
 	if err != nil {
 		l.Warn(err)
 		rw.WriteHeader(400)
 		rw.Write([]byte("Bad request"))
 		return
 	}
-	inserted, err := h.service.AddRecord(newRecord)
+	validate.Struct(recordDTO)
+	inserted, err := h.service.AddRecord(recordDTO)
 	if err != nil {
 		l.Error(err)
 		rw.WriteHeader(500)
@@ -157,9 +181,35 @@ func (h *Handler) createHandler(rw http.ResponseWriter, r *http.Request) {
 	rw.Write(jsoned)
 }
 
+func (h *Handler) deleteHandler(rw http.ResponseWriter, r *http.Request) {
+	l := logger.GetLogger()
+	queryID := r.PathValue("id")
+	if queryID == "" {
+		rw.WriteHeader(400)
+		rw.Write([]byte("Bad request"))
+		return
+	}
+	err := h.service.DeleteRecord(queryID)
+	if err != nil {
+		if err.Error() == "No rows affected by delete" {
+			l.Warn(err)
+			rw.WriteHeader(404)
+			rw.Write([]byte("Not found"))
+			return
+		}
+		l.Error(err)
+		rw.WriteHeader(500)
+		rw.Write([]byte("Internal server error"))
+		return
+	}
+	rw.WriteHeader(http.StatusNoContent)
+	return
+}
+
 func (s *Server) registerRoutes(h *Handler) {
 	s.router.HandleFunc("GET /records", h.listHandler)
 	s.router.HandleFunc("POST /records", h.createHandler)
+	s.router.HandleFunc("DELETE /records/{id}", h.deleteHandler)
 	s.router.HandleFunc("GET /records/{id}", h.retrieveHandler)
 	s.router.HandleFunc("PUT /records/{id}", h.updateHandler)
 }

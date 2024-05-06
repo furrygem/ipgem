@@ -2,8 +2,10 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
+	"github.com/furrygem/ipgem/api/internal/logger"
 	"github.com/furrygem/ipgem/api/internal/models"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -20,6 +22,7 @@ type SQLiteRepository struct {
 	retrieveRecordStatement *sql.Stmt
 	updateRecordStatement   *sql.Stmt
 	insertRecordStatement   *sql.Stmt
+	deleteRecordStatement   *sql.Stmt
 }
 
 const listRecordsQuery = `SELECT
@@ -78,6 +81,8 @@ RETURNING
 	CAST(created_at AS INTEGER),
 	CAST(updated_at AS INTEGER)`
 
+const deleteRecordQuery = `DELETE FROM records WHERE record_id = $1`
+
 func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 	return &SQLiteRepository{
 		dbPath: dbPath,
@@ -103,6 +108,10 @@ func (sqliterepo *SQLiteRepository) Open() error {
 		return err
 	}
 	sqliterepo.insertRecordStatement, err = conn.Prepare(insertRecordQuery)
+	if err != nil {
+		return err
+	}
+	sqliterepo.deleteRecordStatement, err = conn.Prepare(deleteRecordQuery)
 	if err != nil {
 		return err
 	}
@@ -205,6 +214,20 @@ func (sqliterepo *SQLiteRepository) Insert(record *models.Record) (error, models
 	return nil, newRecord
 }
 
-func (sqliterepo *SQLiteRepository) Delete() error {
+func (sqliterepo *SQLiteRepository) Delete(id string) error {
+	l := logger.GetLogger()
+	result, err := sqliterepo.deleteRecordStatement.Exec(id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected <= 0 {
+		err := errors.New("No rows affected by delete")
+		return err
+	}
+	l.Debugf("Deleted record %s", id)
 	return nil
 }

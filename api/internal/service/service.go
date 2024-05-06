@@ -42,7 +42,12 @@ func (dnscrud *DNSCrud) RetrieveRecord(id string) (models.Record, error) {
 	return record, nil
 }
 
-func (dnscrud *DNSCrud) AddRecord(record *models.Record) (models.Record, error) {
+func (dnscrud *DNSCrud) AddRecord(recordDTO *models.RecordDTO) (models.Record, error) {
+	record := &models.Record{}
+	record.DomainName = recordDTO.DomainName
+	record.RecordType = recordDTO.RecordType
+	record.TTL = recordDTO.TTL
+	record.Value = recordDTO.Value
 	record.RecordID = uuid.New()
 	err, newRecord := dnscrud.Repository.Insert(record)
 	if err != nil {
@@ -51,12 +56,23 @@ func (dnscrud *DNSCrud) AddRecord(record *models.Record) (models.Record, error) 
 	return newRecord, nil
 }
 
-func (dnscrud *DNSCrud) UpdateRecord(id string, new *models.Record) (models.Record, error) {
-	err, record := dnscrud.Repository.Update(id, new)
+func (dnscrud *DNSCrud) UpdateRecord(id string, recordDTO *models.RecordDTO) (models.Record, error) {
+	record := models.Record{}
+	record.DomainName = recordDTO.DomainName
+	record.RecordType = recordDTO.RecordType
+	record.TTL = recordDTO.TTL
+	record.Value = recordDTO.Value
+	err, record := dnscrud.Repository.Update(id, &record)
 	if err != nil {
 		return record, err
 	}
 	return record, nil
 }
 
-func (dnscrud *DNSCrud) DeleteRecord() {}
+func (dnscrud *DNSCrud) DeleteRecord(id string) error {
+	err := dnscrud.Repository.Delete(id)
+	if err != nil {
+		return err
+	}
+	return nil
+}

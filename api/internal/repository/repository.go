@@ -10,8 +10,8 @@ type Repository interface {
 	Open() error
 	Close() error
 	List() (error, *models.RecordList)
-	Update(string, *models.Record) (error, models.Record)
-	Retrieve(string) (error, models.Record)
+	Update(id string, updatedRecord *models.Record) (error, models.Record)
+	Retrieve(id string) (error, models.Record)
 	Insert(*models.Record) (error, models.Record)
-	Delete() error
+	Delete(id string) error
 }
