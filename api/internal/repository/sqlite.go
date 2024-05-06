@@ -130,8 +130,6 @@ func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 	var dest models.RecordList = models.RecordList{}
 	for rows.Next() {
 		record := models.Record{}
-		// BUG: Doesn't read the date time fields correctly: "created_at": "0001-01-01T00:00:00Z",
-		// STYLE: improve the style here, line is too long
 		var createdAtTs int64
 		var updatedAtTs int64
 		err := rows.Scan(&record.RecordID,
