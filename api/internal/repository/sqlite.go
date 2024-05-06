@@ -148,9 +148,6 @@ func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 		record.UpdatedAt = time.Unix(updatedAtTs, 0)
 		dest = append(dest, record)
 	}
-	if err != nil {
-		return err, nil
-	}
 	return nil, &dest
 }
 
