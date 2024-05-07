@@ -34,6 +34,14 @@ func (dnscrud *DNSCrud) ListRecords() (*models.RecordList, error) {
 	return records, nil
 }
 
+func (dnscrud *DNSCrud) ListRecordsByDomainName(domain_name string) (*models.RecordList, error) {
+	err, records := dnscrud.Repository.ListByDomainName(domain_name)
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
 func (dnscrud *DNSCrud) RetrieveRecord(id string) (models.Record, error) {
 	err, record := dnscrud.Repository.Retrieve(id)
 	if err != nil {

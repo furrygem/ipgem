@@ -55,7 +55,13 @@ func (s *Server) Start() error {
 
 func (h *Handler) listHandler(w http.ResponseWriter, r *http.Request) {
 	logger := logger.GetLogger()
-	res, err := h.service.ListRecords()
+	var res *models.RecordList
+	var err error
+	if domain_name := r.URL.Query().Get("domain_name"); domain_name != "" {
+		res, err = h.service.ListRecordsByDomainName(domain_name)
+	} else {
+		res, err = h.service.ListRecords()
+	}
 	if err != nil {
 		logger.Error(err)
 		w.WriteHeader(500)

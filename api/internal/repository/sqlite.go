@@ -16,13 +16,14 @@ import (
 // Delete(Identifier) error
 
 type SQLiteRepository struct {
-	dbPath                  string
-	dbConn                  *sql.DB
-	listRecordsStatement    *sql.Stmt
-	retrieveRecordStatement *sql.Stmt
-	updateRecordStatement   *sql.Stmt
-	insertRecordStatement   *sql.Stmt
-	deleteRecordStatement   *sql.Stmt
+	dbPath                           string
+	dbConn                           *sql.DB
+	listRecordsStatement             *sql.Stmt
+	listRecordsByDomainNameStatement *sql.Stmt
+	retrieveRecordStatement          *sql.Stmt
+	updateRecordStatement            *sql.Stmt
+	insertRecordStatement            *sql.Stmt
+	deleteRecordStatement            *sql.Stmt
 }
 
 const listRecordsQuery = `SELECT
@@ -34,6 +35,18 @@ const listRecordsQuery = `SELECT
 	CAST(created_at AS INTEGER),
 	CAST(updated_at AS INTEGER)
 FROM records`
+
+const listRecordsByDomainNameQuery = `SELECT
+	record_id,
+	domain_name,
+	record_type,
+	value,
+	ttl,
+	CAST(created_at AS INTEGER),
+	CAST(updated_at AS INTEGER)
+FROM records
+WHERE domain_name=$1
+`
 
 const retrieveRecordQuery = `SELECT
 	record_id,
@@ -115,6 +128,10 @@ func (sqliterepo *SQLiteRepository) Open() error {
 	if err != nil {
 		return err
 	}
+	sqliterepo.listRecordsByDomainNameStatement, err = conn.Prepare(listRecordsByDomainNameQuery)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -124,6 +141,33 @@ func (sqliterepo *SQLiteRepository) Close() error {
 
 func (sqliterepo *SQLiteRepository) List() (error, *models.RecordList) {
 	rows, err := sqliterepo.listRecordsStatement.Query()
+	if err != nil {
+		return err, nil
+	}
+	var dest models.RecordList = models.RecordList{}
+	for rows.Next() {
+		record := models.Record{}
+		var createdAtTs int64
+		var updatedAtTs int64
+		err := rows.Scan(&record.RecordID,
+			&record.DomainName,
+			&record.RecordType,
+			&record.Value,
+			&record.TTL,
+			&createdAtTs,
+			&updatedAtTs)
+		if err != nil {
+			return err, nil
+		}
+		record.CreatedAt = time.Unix(createdAtTs, 0)
+		record.UpdatedAt = time.Unix(updatedAtTs, 0)
+		dest = append(dest, record)
+	}
+	return nil, &dest
+}
+
+func (sqliterepo *SQLiteRepository) ListByDomainName(domain_name string) (error, *models.RecordList) {
+	rows, err := sqliterepo.listRecordsByDomainNameStatement.Query(domain_name)
 	if err != nil {
 		return err, nil
 	}
@@ -226,3 +270,5 @@ func (sqliterepo *SQLiteRepository) Delete(id string) error {
 	l.Debugf("Deleted record %s", id)
 	return nil
 }
+
+var _ Repository = &SQLiteRepository{}

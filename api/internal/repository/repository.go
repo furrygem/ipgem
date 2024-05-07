@@ -12,6 +12,7 @@ type Repository interface {
 	List() (error, *models.RecordList)
 	Update(id string, updatedRecord *models.Record) (error, models.Record)
 	Retrieve(id string) (error, models.Record)
+	ListByDomainName(name string) (error, *models.RecordList)
 	Insert(*models.Record) (error, models.Record)
 	Delete(id string) error
 }
